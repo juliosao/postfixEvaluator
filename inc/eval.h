@@ -13,10 +13,33 @@ namespace eval
     */
     typedef std::function<void(std::stack<std::string>&)> _operator;
 
-    class evalException: public std::exception{}; /**< Generic eval exception */
-    class missingOperand: public evalException{}; /**< One or more operands are missing */
-    class invalidToken: public evalException{}; /**< Invalid function call */
-    class notValidExpression: public evalException{}; /**< Expression is not well-formed*/
+    class evalException: public std::exception{
+        public:
+            evalException(const std::string& msg);
+            const char* what();
+        private:
+            std::string msg;
+    }; /**< Generic eval exception */
+
+    /**
+     * \class missingOperand
+     * \brief Raise d when one or more operands are missing 
+     */
+    class missingOperand: public evalException{
+        public:
+            missingOperand(const std::string& op);
+    }; 
+    
+    /**
+     * \class notValidExpression
+     * \brief Raised when a expression is not well-formed
+     */
+    class notValidExpression: public evalException{
+        public:
+            notValidExpression(std::stack<std::string>& st);
+        private:
+            static std::string parseStack(std::stack<std::string>& st);
+    }; 
 
     /**
      * \class evaluator
@@ -52,13 +75,8 @@ namespace eval
              * \fn addOperand(const std::string& value);
              * \brief Adds an operand to the evaluator stak (For debug purposes)
             */
-            void addOperand(const std::string& value);
+            void evaluateToken(const std::string& token);
 
-            /**
-             * \fn runOperator(const std::string& name);
-             * \brief Runs an operator into the evaluator environment
-            */
-            void runOperator(const std::string& name);
         private:
             std::stack<std::string> operands; /**< stack for data */
             std::map<std::string,_operator> validOperators; /**< valid operators registered in the evaluator */
@@ -68,5 +86,5 @@ namespace eval
      * \fn eval(std::string src);
      * \brief This function is a shorthand function that evaluates a simple postfix expression without additions and returns a double with the result
     */
-    double eval(std::string src);
+    std::string eval(std::string src);
 }
