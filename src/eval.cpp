@@ -128,16 +128,39 @@ namespace eval
 
     void pop(std::stack<std::string>& src)
     {
-        if(src.size() < 1)
+        if(src.size() <= 1)
             throw missingOperand("pop");
-        src.pop();     
+        
+        auto number = atol(src.top().c_str());
+        if(src.size() <= number)
+            throw missingOperand("pop (" + std::to_string(number) +" elements)");
+
+        while(number > 0)
+        {
+            src.pop();
+            number --;
+        }
+        
     }
 
     void dup(std::stack<std::string>& src)
     {
-        if(src.size() < 1)
+        if(src.size() < 2)
             throw missingOperand("dup");
-        src.push(src.top());
+
+        auto number = atol(src.top().c_str());
+        src.pop();
+
+        auto target = src.top();
+        number -= 1;
+
+        while(number > 0)
+        {
+            src.push(target);
+            number --;
+        }
+
+        
     }
 
     void read(std::stack<std::string>& src)
