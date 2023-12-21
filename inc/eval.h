@@ -1,31 +1,25 @@
 #pragma once
 
 #include <string>
-#include <exception>
+#include <stdexcept>
 #include <map>
-#include <stack>
+#include <vector>
 #include <functional>
 
+#include "evalStack.h"
+
 namespace eval
-{
+{    
     /**
      * This is the prototype that "plugins" require to match
     */
-    typedef std::function<void(std::stack<std::string>&)> _operator;
-
-    class evalException: public std::exception{
-        public:
-            evalException(const std::string& msg);
-            const char* what();
-        private:
-            std::string msg;
-    }; /**< Generic eval exception */
+    typedef std::function<void(eval_stack&)> _operator;
 
     /**
      * \class missingOperand
      * \brief Raise d when one or more operands are missing 
      */
-    class missingOperand: public evalException{
+    class missingOperand: public std::runtime_error{
         public:
             missingOperand(const std::string& op);
     }; 
@@ -34,11 +28,9 @@ namespace eval
      * \class notValidExpression
      * \brief Raised when a expression is not well-formed
      */
-    class notValidExpression: public evalException{
+    class notValidExpression: public std::runtime_error{
         public:
-            notValidExpression(std::stack<std::string>& st);
-        private:
-            static std::string parseStack(std::stack<std::string>& st);
+            notValidExpression();
     }; 
 
     /**
@@ -69,7 +61,7 @@ namespace eval
              * \param name The name of the function (For evaluation purposes)
              * \param implementation A function matching _evaluator typedef. This function will be called when its name is find into a expression
             */
-            void defineOperator(const std::string& name, _operator implementation);
+            void defineOperator(const std::string& name, const _operator& implementation);
 
             /**
              * \fn addOperand(const std::string& value);
@@ -77,10 +69,39 @@ namespace eval
             */
             void evaluateToken(const std::string& token);
 
+            /**
+             * \fn setDebug(boolean v)
+             * \brief Enables or disables debug mode
+             * \param v Debug mode status (true: active, false:inactive)
+            */
+            void setDebug(bool v);
+
+            /**
+             * \fn push(std::string v);
+             * \brief Pushes a value into stack
+             * \param v Value to push
+            */
+            void push(std::string v);
+
+            /**
+             * \fn pop()
+             * \brief Pops a value from the stack
+             * \return The value obtained
+            */
+            std::string pop();
+
+            /**
+             * \fn getStackSize()
+             * \return The number of values in the stack
+            */
+            unsigned long getStackSize();
+
+            
         private:
-            std::stack<std::string> operands; /**< stack for data */
+            eval_stack operands; /**< stack for data */
             std::map<std::string,_operator> validOperators; /**< valid operators registered in the evaluator */
-    };
+            bool debugMode;
+        };  
 
     /**
      * \fn eval(std::string src);

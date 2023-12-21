@@ -1,5 +1,5 @@
 #include <iostream>
-#include <stack>
+#include <vector>
 #include <map>
 #include <string>
 #include <cctype>
@@ -15,24 +15,17 @@ namespace eval
         string
     };
         
-    evalException::evalException(const std::string& m):
-        msg(m)
-    {}
-
-    const char* evalException::what()
-    {
-        return msg.c_str();
-    }
 
     missingOperand::missingOperand(const std::string& op):
-        evalException("Not enough arguments for opcode: " + op)
+        std::runtime_error("Not enough arguments for opcode: " + op)
     {}
 
-    notValidExpression::notValidExpression(std::stack<std::string>& st):
-        evalException(parseStack(st))
+    notValidExpression::notValidExpression():
+        std::runtime_error("Not valid expression")
     {}
 
-    std::string notValidExpression::parseStack(std::stack<std::string>& st)
+/*
+    std::string notValidExpression::parseStack(eval_stack& st)
     {
         std::string tmp = "Stack:\n";
 
@@ -43,81 +36,45 @@ namespace eval
         }
         return tmp;
     }
+*/
 
-    void add (std::stack<std::string>& src)
+    void add (eval_stack& src)
     {
-        if(src.size() < 2)
-            throw missingOperand("add");
-
-        double s2 = atof(src.top().c_str());
-        src.pop();
-
-        double s1 = atof(src.top().c_str());
-        src.pop();
-
+        double s2 = atof(src.pop().c_str());
+        double s1 = atof(src.pop().c_str());
         src.push( std::to_string(s1+s2) );
     }
 
-    void sub (std::stack<std::string>& src)
-    {
-        if(src.size() < 2)
-            throw missingOperand("sub");
-        
-        double s2 = atof(src.top().c_str());
-        src.pop();
-
-        double s1 = atof(src.top().c_str());
-        src.pop();            
-
+    void sub (eval_stack& src)
+    {   
+        double s2 = atof(src.pop().c_str());
+        double s1 = atof(src.pop().c_str());
         src.push( std::to_string(s1-s2) );
     }
 
-    void mul (std::stack<std::string>& src)
+    void mul (eval_stack& src)
     {
-        if(src.size() < 2)
-            throw missingOperand("mul");
-
-        double s2 = atof(src.top().c_str());
-        src.pop();
-
-        double s1 = atof(src.top().c_str());
-        src.pop();
-
+        double s2 = atof(src.pop().c_str());
+        double s1 = atof(src.pop().c_str());
         src.push( std::to_string(s1*s2) );
     }
 
-    void div (std::stack<std::string>& src)
+    void div (eval_stack& src)
     {
-        if(src.size() < 2)
-            throw missingOperand("div");
-
-        double s2 = atof(src.top().c_str());
-        src.pop();
-
-        double s1 = atof(src.top().c_str());
-        src.pop();     
-
+        double s2 = atof(src.pop().c_str());
+        double s1 = atof(src.pop().c_str());
         src.push( std::to_string(s1/s2) );
     }
 
-    void print(std::stack<std::string>& src)
-    {
-        if(src.size() < 1)
-            throw missingOperand("print");
-
-        auto top = src.top();        
-        long number = atol(top.c_str());
+    void print(eval_stack& src)
+    {   
+        long number = atol(src.pop().c_str());
         unsigned long writed = 0;
-        src.pop();
 
-        if(src.size() < number)
-            throw missingOperand("print (" + top + " tokens)");
-        
         while(number > 0)
         {
-            top = src.top();
+            auto top = src.pop();
             std::cout << top;
-            src.pop();
             writed += top.size();
             number--;
         }
@@ -126,32 +83,20 @@ namespace eval
         src.push(std::to_string(writed));
     }
 
-    void pop(std::stack<std::string>& src)
+    void pop(eval_stack& src)
     {
-        if(src.size() <= 1)
-            throw missingOperand("pop");
-        
-        auto number = atol(src.top().c_str());
-        if(src.size() <= number)
-            throw missingOperand("pop (" + std::to_string(number) +" elements)");
-
+        auto number = atol(src.pop().c_str());
         while(number > 0)
         {
             src.pop();
             number --;
         }
-        
     }
 
-    void dup(std::stack<std::string>& src)
+    void dup(eval_stack& src)
     {
-        if(src.size() < 2)
-            throw missingOperand("dup");
-
-        auto number = atol(src.top().c_str());
-        src.pop();
-
-        auto target = src.top();
+        auto number = atol(src.pop().c_str());
+        auto target = src.pop();
         number -= 1;
 
         while(number > 0)
@@ -159,15 +104,22 @@ namespace eval
             src.push(target);
             number --;
         }
-
-        
     }
 
-    void read(std::stack<std::string>& src)
+    void read(eval_stack& src)
     {
         std::string s;
-        std::cin >> s;
+        std::getline(std::cin,s);
         src.push(s);
+    }
+
+    void swap(eval_stack& src)
+    {
+        std::string a = src.pop();
+        std::string b = src.pop();
+
+        src.push(a);
+        src.push(b);
     }
 
     evaluator::evaluator():
@@ -179,23 +131,41 @@ namespace eval
             {"read",eval::read},
             {"print",eval::print},
             {"pop",eval::pop},
-            {"dup",eval::dup}},
+            {"dup",eval::dup},
+            {"swap",eval::swap}},
         operands()
     {};
 
+    unsigned long int evaluator::getStackSize()
+    {
+        return operands.size();
+    }
 
     void evaluator::evaluateToken(const std::string& token)
-    {
-        
+    {        
         auto pos = validOperators.find(token);
         if(pos != validOperators.end())
+        {
+            if(debugMode)
+                std::cout << "Execute: " << token << std::endl;  
             pos->second(operands);
+        }
         else
-            operands.push(token);
+        {
+            if(debugMode)
+                std::cout << "Push: " << token << std::endl;  
+            operands.push(token);            
+        }
+    
+        if(debugMode)
+        {
+            std::string notUsed;
+            std::getline(std::cin,notUsed);
+        }
     }
 
 
-    void evaluator::defineOperator(const std::string& name, _operator implementation)
+    void evaluator::defineOperator(const std::string& name, const _operator& implementation)
     {
         validOperators[name]=implementation;
     }
@@ -204,6 +174,9 @@ namespace eval
     {
         std::string tmp="";
         tokenType last = tokenType::none;
+
+        while(!operands.empty())
+            operands.pop();
 
         for(char c: src)
         {
@@ -292,9 +265,14 @@ namespace eval
         }
         
         if(operands.size() > 1)
-            throw notValidExpression(operands);
+            throw notValidExpression();
 
-        return operands.top();
+        return operands.pop();
+    }
+
+    void evaluator::setDebug(bool v)
+    {
+        debugMode = v;
     }
 
     std::string eval(std::string src)
